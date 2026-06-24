@@ -2,6 +2,7 @@ import { getCurrentPosition, watchPosition } from './location.js'
 import { getMoonData, getNextMoonrise, getMoonTimes, getMoonDistanceData, getDayAltitudes, getMonthPhases, getNextFullMoon, getPhotographyRecommendations } from './moon.js'
 import { initCompass, updateCompass, renderAltitude, renderTrajectory } from './compass.js'
 import { getOrientationSupport, requestOrientationPermission, startWatchingHeading, stopWatchingHeading } from './orientation.js'
+import { fetchWeatherForecast, getNightCloudCover, getWeatherInfo } from './weather.js'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -17,6 +18,7 @@ const state = {
   watchId: null,
   timezone: null,
   photoType: 'full',
+  weatherData: null,
 }
 
 const $ = id => document.getElementById(id)
@@ -211,39 +213,46 @@ function getPhotoDescription(day, type, fmtTime) {
   const illumPct = (day.illumination * 100).toFixed(0)
   const moonriseStr = day.moonrise ? fmtTime(day.moonrise) : null
 
+  let base = ''
+
   if (type === 'surface') {
     if (day.score >= 85) {
-      return `조도 ${illumPct}%로 달 표면 촬영에 최적입니다. 터미네이터(명암 경계)가 선명해 크레이터와 산맥 그림자가 잘 나타납니다. 망원렌즈나 망원경 촬영에 적합합니다.`
+      base = `조도 ${illumPct}%로 달 표면 촬영에 최적입니다. 터미네이터(명암 경계)가 선명해 크레이터와 산맥 그림자가 잘 나타납니다. 망원렌즈나 망원경 촬영에 적합합니다.`
+    } else if (day.score >= 60) {
+      base = `조도 ${illumPct}%로 달 표면 디테일을 촬영할 수 있습니다. 크레이터 일부를 확인할 수 있습니다.`
+    } else {
+      base = `조도 ${illumPct}%로 표면 디테일 촬영에는 적합하지 않습니다. 상현달·하현달에 가까운 날을 선택하세요.`
     }
-    if (day.score >= 60) {
-      return `조도 ${illumPct}%로 달 표면 디테일을 촬영할 수 있습니다. 크레이터 일부를 확인할 수 있습니다.`
-    }
-    return `조도 ${illumPct}%로 표면 디테일 촬영에는 적합하지 않습니다. 상현달·하현달에 가까운 날을 선택하세요.`
-  }
-
-  if (type === 'full') {
+  } else if (type === 'full') {
     if (day.score >= 90) {
       const sup = day.tags.includes('슈퍼문') ? ' 슈퍼문으로 평소보다 크게 보입니다.' : ''
-      return `조도 ${illumPct}%의 보름달입니다. 달 전체가 밝게 빛나 광각~표준 렌즈로 촬영하기 좋습니다.${sup}`
+      base = `조도 ${illumPct}%의 보름달입니다. 달 전체가 밝게 빛나 광각~표준 렌즈로 촬영하기 좋습니다.${sup}`
+    } else if (day.score >= 60) {
+      base = `조도 ${illumPct}%로 거의 보름달에 가깝습니다. 둥근 달의 모습을 촬영할 수 있습니다.`
+    } else {
+      base = `조도 ${illumPct}%로 보름달까지 아직 시간이 있습니다. 더 밝은 날을 선택하세요.`
     }
-    if (day.score >= 60) {
-      return `조도 ${illumPct}%로 거의 보름달에 가깝습니다. 둥근 달의 모습을 촬영할 수 있습니다.`
-    }
-    return `조도 ${illumPct}%로 보름달까지 아직 시간이 있습니다. 더 밝은 날을 선택하세요.`
-  }
-
-  if (type === 'landscape') {
+  } else if (type === 'landscape') {
     if (day.score >= 80 && moonriseStr) {
-      return `${moonriseStr}에 달이 떠오릅니다. 달 고도가 낮아 건물, 산, 나무와 함께 대형 달 풍경 사진을 촬영하기 매우 좋습니다.`
-    }
-    if (day.score >= 60) {
+      base = `${moonriseStr}에 달이 떠오릅니다. 달 고도가 낮아 건물, 산, 나무와 함께 대형 달 풍경 사진을 촬영하기 매우 좋습니다.`
+    } else if (day.score >= 60) {
       const timeHint = moonriseStr ? ` 월출 시간은 ${moonriseStr}입니다.` : ''
-      return `조도 ${illumPct}%의 달과 풍경을 함께 담을 수 있는 날입니다.${timeHint}`
+      base = `조도 ${illumPct}%의 달과 풍경을 함께 담을 수 있는 날입니다.${timeHint}`
+    } else {
+      base = `위상과 월출 조건이 달 풍경 촬영에 최적이 아닙니다. 더 높은 점수의 날을 선택하세요.`
     }
-    return `위상과 월출 조건이 달 풍경 촬영에 최적이 아닙니다. 더 높은 점수의 날을 선택하세요.`
   }
 
-  return ''
+  // 날씨 코멘트 추가
+  if (day.cloudCover !== null && day.cloudCover !== undefined) {
+    if (day.cloudCover >= 70) {
+      base += ' 구름이 많아 촬영이 어려울 수 있습니다.'
+    } else if (day.cloudCover < 25) {
+      base += ' 맑은 날씨로 촬영 조건이 매우 좋습니다.'
+    }
+  }
+
+  return base
 }
 
 function renderPhotoDaysForCurrentType() {
@@ -253,7 +262,21 @@ function renderPhotoDaysForCurrentType() {
   const tz = state.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
   const localNoon = makeLocalNoon(now, tz)
   const fmtTime = makeFmt(tz)
-  const days = getPhotographyRecommendations(localNoon, latitude, longitude, state.photoType, 30)
+
+  let days = getPhotographyRecommendations(localNoon, latitude, longitude, state.photoType, 30)
+
+  // 날씨 데이터가 있으면 천문 점수(60%) + 날씨 점수(40%) 블렌딩
+  if (state.weatherData) {
+    days = days.map(d => {
+      const cloudCover = getNightCloudCover(state.weatherData, d.date)
+      const weatherInfo = getWeatherInfo(cloudCover)
+      if (!weatherInfo) return d
+      const blended = Math.round(d.score * 0.6 + weatherInfo.score * 0.4)
+      const stars = blended >= 85 ? 5 : blended >= 70 ? 4 : blended >= 55 ? 3 : blended >= 40 ? 2 : 1
+      return { ...d, score: blended, cloudCover, weatherInfo, stars }
+    }).sort((a, b) => b.score - a.score)
+  }
+
   renderPhotoDays(document.getElementById('photo-days'), days, state.photoType, tz, fmtTime)
 }
 
@@ -296,6 +319,12 @@ function renderPhotoDays(containerEl, days, type, tz, fmtTime) {
       span.textContent = tag
       tagsEl.appendChild(span)
     })
+    if (d.weatherInfo) {
+      const wSpan = document.createElement('span')
+      wSpan.className = `photo-tag ${d.weatherInfo.tagClass}`
+      wSpan.textContent = `${d.weatherInfo.icon} ${d.weatherInfo.label}`
+      tagsEl.appendChild(wSpan)
+    }
 
     const descEl = document.createElement('div')
     descEl.className = 'photo-day-desc'
@@ -311,6 +340,9 @@ function renderPhotoDays(containerEl, days, type, tz, fmtTime) {
     } else {
       metaParts.push(`거리 ${d.distance.toLocaleString('ko-KR')}km`)
       if (d.moonrise) metaParts.push(`월출 ${fmtTime(d.moonrise)}`)
+    }
+    if (d.cloudCover !== null && d.cloudCover !== undefined) {
+      metaParts.push(`운량 ${d.cloudCover}%`)
     }
     metaEl.textContent = metaParts.join(' · ')
 
@@ -423,6 +455,11 @@ async function init() {
   // GPS 좌표 기반 타임존 조회 (실패해도 진행)
   state.timezone = await fetchTimezone(state.position.latitude, state.position.longitude)
 
+  // 날씨 예보 백그라운드 로딩 (완료 시 추천일 자동 갱신)
+  fetchWeatherForecast(state.position.latitude, state.position.longitude).then(data => {
+    if (data) { state.weatherData = data; renderPhotoDaysForCurrentType() }
+  })
+
   initCompass(els.compassContainer)
   await updateMoonDisplay()
   showScreen('main')
@@ -443,6 +480,10 @@ els.manualForm.addEventListener('submit', async (e) => {
 
   state.position = { latitude: lat, longitude: lon, accuracy: 0 }
   state.timezone = await fetchTimezone(lat, lon)
+
+  fetchWeatherForecast(lat, lon).then(data => {
+    if (data) { state.weatherData = data; renderPhotoDaysForCurrentType() }
+  })
 
   initCompass(els.compassContainer)
   await updateMoonDisplay()

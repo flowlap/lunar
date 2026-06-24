@@ -372,6 +372,12 @@ body {
 .photo-tag.tag-golden { color: #ff9f43; border-color: #ff9f43; }
 .photo-tag.tag-super  { color: #4fc3f7; border-color: #4fc3f7; }
 
+.photo-tag.tag-weather-clear { color: #26de81; border-color: #26de81; }
+.photo-tag.tag-weather-good  { color: #a3cb8c; border-color: #a3cb8c; }
+.photo-tag.tag-weather-fair  { color: #fed330; border-color: #fed330; }
+.photo-tag.tag-weather-poor  { color: #fd9644; border-color: #fd9644; }
+.photo-tag.tag-weather-bad   { color: #8888aa; border-color: #8888aa; }
+
 .photo-day-desc {
   font-size: 12px;
   color: var(--text-primary);

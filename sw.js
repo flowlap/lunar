@@ -1,4 +1,4 @@
-const CACHE_NAME = 'lunar-v3';
+const CACHE_NAME = 'lunar-v4';
 
 const CDN_ASSETS = [
   'https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js',
@@ -14,8 +14,12 @@ const APP_ASSETS = [
   './src/moon.js',
   './src/compass.js',
   './src/orientation.js',
+  './src/weather.js',
   './public/icons/icon.svg',
 ];
+
+// 항상 최신 데이터가 필요한 외부 API — 캐시 제외
+const API_HOSTS = ['api.open-meteo.com', 'timeapi.io'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -51,6 +55,15 @@ self.addEventListener('fetch', (event) => {
       )
     );
   } else {
+    // 외부 API는 캐시 없이 네트워크만 사용
+    const isAPI = API_HOSTS.some(h => event.request.url.includes(h));
+    if (isAPI) {
+      event.respondWith(
+        fetch(event.request).catch(() => new Response('{}', { status: 503 }))
+      );
+      return;
+    }
+
     // 앱 파일: 네트워크 우선 → 온라인 시 항상 최신 버전, 오프라인 시 캐시 fallback
     event.respondWith(
       fetch(event.request)
