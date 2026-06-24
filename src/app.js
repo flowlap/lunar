@@ -9,7 +9,14 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-const state = { position: null, moonData: null, deviceHeading: null, updateTimer: null, watchId: null }
+const state = {
+  position: null,
+  moonData: null,
+  deviceHeading: null,
+  updateTimer: null,
+  watchId: null,
+  timezone: null,
+}
 
 const $ = id => document.getElementById(id)
 const els = {
@@ -55,9 +62,29 @@ const messages = {
 }
 
 function showError(message) {
-  const displayMessage = messages[message] || message
-  els.errorMessage.textContent = displayMessage
+  els.errorMessage.textContent = messages[message] || message
   showScreen('error')
+}
+
+// GPS 좌표로 IANA 타임존 조회 (실패 시 기기 타임존 사용)
+async function fetchTimezone(lat, lon) {
+  try {
+    const res = await fetch(
+      `https://timeapi.io/api/TimeZone/coordinate?latitude=${lat}&longitude=${lon}`
+    )
+    if (!res.ok) return null
+    const data = await res.json()
+    return data.timeZone || null
+  } catch {
+    return null
+  }
+}
+
+// GPS 좌표의 타임존 기준 시각 포맷
+function makeFmt(tz) {
+  return d => d
+    ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: tz })
+    : '—'
 }
 
 async function updateMoonDisplay() {
@@ -65,6 +92,16 @@ async function updateMoonDisplay() {
 
   const { latitude, longitude, accuracy } = state.position
   const now = new Date()
+  const tz = state.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  const fmtTime = makeFmt(tz)
+
+  // 로컬 정오 기준 날짜 — UTC 날짜 경계 문제 방지
+  const localNoon = new Date(
+    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
+      .format(now)
+      .replace(/(\d+)-(\d+)-(\d+)/, '$1-$2-$3') + 'T12:00:00'
+  )
+
   const moonData = getMoonData(now, latitude, longitude)
   state.moonData = moonData
 
@@ -80,18 +117,16 @@ async function updateMoonDisplay() {
 
   if (!isVisible) {
     els.belowHorizonMsg.classList.remove('hidden')
-    const nextRise = getNextMoonrise(now, latitude, longitude)
+    const nextRise = getNextMoonrise(localNoon, latitude, longitude)
     if (nextRise) {
-      const timeStr = nextRise.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-      els.belowHorizonMsg.textContent = '🌑 달이 지평선 아래에 있습니다. 다음 월출: ' + timeStr
+      els.belowHorizonMsg.textContent = '🌑 달이 지평선 아래에 있습니다. 다음 월출: ' + fmtTime(nextRise)
     }
   } else {
     els.belowHorizonMsg.classList.add('hidden')
   }
 
-  // 월출 / 월몰
-  const moonTimes = getMoonTimes(now, latitude, longitude)
-  const fmt = d => d ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '—'
+  // 월출 / 월몰 — 로컬 정오 기준 날짜로 계산
+  const moonTimes = getMoonTimes(localNoon, latitude, longitude)
   if (moonTimes.alwaysUp) {
     els.infoMoonrise.textContent = '종일 가시'
     els.infoMoonset.textContent = '종일 가시'
@@ -99,38 +134,42 @@ async function updateMoonDisplay() {
     els.infoMoonrise.textContent = '종일 불가'
     els.infoMoonset.textContent = '종일 불가'
   } else {
-    els.infoMoonrise.textContent = fmt(moonTimes.rise)
-    els.infoMoonset.textContent = fmt(moonTimes.set)
+    els.infoMoonrise.textContent = fmtTime(moonTimes.rise)
+    els.infoMoonset.textContent = fmtTime(moonTimes.set)
   }
 
   // 달까지의 거리
   const dist = getMoonDistanceData(now, latitude, longitude)
   els.infoDistance.textContent = dist.distance.toLocaleString('ko-KR') + ' km'
   const diffSign = dist.closerThanAvg ? '▼ ' : '▲ '
-  const diffColor = dist.closerThanAvg ? '#f5d87a' : '#8888aa'
   els.infoDistanceDiff.textContent = diffSign + dist.percentDiff + '%'
-  els.infoDistanceDiff.style.color = diffColor
+  els.infoDistanceDiff.style.color = dist.closerThanAvg ? '#f5d87a' : '#8888aa'
   els.supermoonBadge.classList.toggle('hidden', !dist.isSuperMoon)
   els.minimoonBadge.classList.toggle('hidden', !dist.isMiniMoon)
 
   // 오늘의 달 궤적
-  const altitudes = getDayAltitudes(now, latitude, longitude)
-  renderTrajectory(els.trajectoryContainer, altitudes, now.getHours())
+  const altitudes = getDayAltitudes(localNoon, latitude, longitude)
+  const localHour = parseInt(
+    new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(now),
+    10
+  )
+  renderTrajectory(els.trajectoryContainer, altitudes, localHour)
 
   // 다음 보름달 D-day
   const nextFull = getNextFullMoon(now)
   if (nextFull) {
-    els.infoFullmoon.textContent = nextFull.daysLeft === 0
-      ? '오늘!'
-      : `D-${nextFull.daysLeft} (${nextFull.date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})`
+    const dateStr = nextFull.date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', timeZone: tz })
+    els.infoFullmoon.textContent = nextFull.daysLeft === 0 ? '오늘!' : `D-${nextFull.daysLeft} (${dateStr})`
   }
 
-  // 이번 달 위상 달력
-  const phases = getMonthPhases(now.getFullYear(), now.getMonth())
-  renderPhaseCalendar(els.phaseCalendar, phases, now.getDate())
+  // 이번 달 위상 달력 — 로컬 날짜 기준
+  const localDateStr = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now)
+  const [localYear, localMonth, localDay] = localDateStr.split('-').map(Number)
+  const phases = getMonthPhases(localYear, localMonth - 1)
+  renderPhaseCalendar(els.phaseCalendar, phases, localDay)
 
   els.infoCoords.textContent = latitude.toFixed(4) + '°N ' + longitude.toFixed(4) + '°E ±' + accuracy.toFixed(0) + 'm'
-  els.updateTime.textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  els.updateTime.textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz })
 }
 
 function renderPhaseCalendar(containerEl, phases, today) {
@@ -199,6 +238,9 @@ async function init() {
     return
   }
 
+  // GPS 좌표 기반 타임존 조회 (실패해도 진행)
+  state.timezone = await fetchTimezone(state.position.latitude, state.position.longitude)
+
   initCompass(els.compassContainer)
   await updateMoonDisplay()
   showScreen('main')
@@ -218,6 +260,8 @@ els.manualForm.addEventListener('submit', async (e) => {
   }
 
   state.position = { latitude: lat, longitude: lon, accuracy: 0 }
+  state.timezone = await fetchTimezone(lat, lon)
+
   initCompass(els.compassContainer)
   await updateMoonDisplay()
   showScreen('main')
