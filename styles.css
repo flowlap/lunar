@@ -192,6 +192,14 @@ body {
   font-weight: 600;
 }
 
+.tz-label {
+  font-size: 10px;
+  color: var(--accent-compass);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 .supermoon-badge {
   background: linear-gradient(135deg, #f5d87a22, #f5d87a44);
   border: 1px solid var(--accent-moon);

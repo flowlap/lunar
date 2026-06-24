@@ -66,6 +66,19 @@ function showError(message) {
   showScreen('error')
 }
 
+// 로컬 날짜 기준 UTC 정오 생성 — SunCalc에 넘길 날짜의 UTC 경계 문제 방지
+function makeLocalNoon(date, timezone) {
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone, year: 'numeric', month: 'numeric', day: 'numeric'
+    }).formatToParts(date)
+    const get = t => +parts.find(p => p.type === t).value
+    return new Date(Date.UTC(get('year'), get('month') - 1, get('day'), 12, 0, 0))
+  } catch {
+    return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0)
+  }
+}
+
 // GPS 좌표로 IANA 타임존 조회 (실패 시 기기 타임존 사용)
 async function fetchTimezone(lat, lon) {
   try {
@@ -95,12 +108,8 @@ async function updateMoonDisplay() {
   const tz = state.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
   const fmtTime = makeFmt(tz)
 
-  // 로컬 정오 기준 날짜 — UTC 날짜 경계 문제 방지
-  const localNoon = new Date(
-    new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })
-      .format(now)
-      .replace(/(\d+)-(\d+)-(\d+)/, '$1-$2-$3') + 'T12:00:00'
-  )
+  const localNoon = makeLocalNoon(now, tz)
+  const tomorrowNoon = new Date(localNoon.getTime() + 24 * 3600000)
 
   const moonData = getMoonData(now, latitude, longitude)
   state.moonData = moonData
@@ -125,18 +134,37 @@ async function updateMoonDisplay() {
     els.belowHorizonMsg.classList.add('hidden')
   }
 
-  // 월출 / 월몰 — 로컬 정오 기준 날짜로 계산
-  const moonTimes = getMoonTimes(localNoon, latitude, longitude)
-  if (moonTimes.alwaysUp) {
-    els.infoMoonrise.textContent = '종일 가시'
-    els.infoMoonset.textContent = '종일 가시'
-  } else if (moonTimes.alwaysDown) {
-    els.infoMoonrise.textContent = '종일 불가'
-    els.infoMoonset.textContent = '종일 불가'
-  } else {
-    els.infoMoonrise.textContent = fmtTime(moonTimes.rise)
-    els.infoMoonset.textContent = fmtTime(moonTimes.set)
+  // 타임존 약어 (예: GMT+9, KST)
+  const tzAbbr = (() => {
+    try {
+      return new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'short' })
+        .formatToParts(now).find(p => p.type === 'timeZoneName')?.value || ''
+    } catch { return '' }
+  })()
+  document.getElementById('times-tz-label').textContent = tzAbbr ? `(${tzAbbr})` : ''
+
+  // 월출/월몰: 오늘 + 내일 계산 후 now 이후 첫 이벤트 표시
+  const todayTimes = getMoonTimes(localNoon, latitude, longitude)
+  const tomorrowTimes = getMoonTimes(tomorrowNoon, latitude, longitude)
+
+  const nextRise = (todayTimes.rise && todayTimes.rise > now ? todayTimes.rise : null)
+    || (tomorrowTimes.rise || null)
+  const nextSet = (todayTimes.set && todayTimes.set > now ? todayTimes.set : null)
+    || (tomorrowTimes.set || null)
+
+  // 날짜가 오늘인지 확인해서 날짜 포함 여부 결정
+  const fmtEvent = d => {
+    if (!d) return '—'
+    const dLocal = makeLocalNoon(d, tz)
+    const sameDay = dLocal.getTime() === localNoon.getTime()
+    return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: tz })
+      + (sameDay ? '' : ' (' + d.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric', timeZone: tz }) + ')')
   }
+
+  document.getElementById('moonrise-label').textContent = '🌅 다음 월출'
+  document.getElementById('moonset-label').textContent = '🌇 다음 월몰'
+  els.infoMoonrise.textContent = fmtEvent(nextRise)
+  els.infoMoonset.textContent = fmtEvent(nextSet)
 
   // 달까지의 거리
   const dist = getMoonDistanceData(now, latitude, longitude)
@@ -149,10 +177,13 @@ async function updateMoonDisplay() {
 
   // 오늘의 달 궤적
   const altitudes = getDayAltitudes(localNoon, latitude, longitude)
-  const localHour = parseInt(
-    new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(now),
-    10
-  )
+  const localHour = (() => {
+    try {
+      const h = new Intl.DateTimeFormat('en-US', { timeZone: tz, hour: 'numeric', hour12: false }).format(now)
+      const n = parseInt(h, 10)
+      return n === 24 ? 0 : n
+    } catch { return now.getHours() }
+  })()
   renderTrajectory(els.trajectoryContainer, altitudes, localHour)
 
   // 다음 보름달 D-day
