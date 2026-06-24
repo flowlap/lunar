@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#0a0a1a">
+  <link rel="manifest" href="manifest.json">
+  <title>Lunar</title>
+  <script src="https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="app-header">
+      <h1 class="app-title">🌙 Lunar</h1>
+      <span id="update-time" class="update-time"></span>
+    </header>
+    <div id="loading-screen" class="screen">
+      <div class="spinner"></div>
+      <p>위치 정보를 가져오는 중...</p>
+    </div>
+    <div id="error-screen" class="screen hidden">
+      <p id="error-message" class="error-text"></p>
+      <form id="manual-location-form" class="manual-form">
+        <label>위도 <input type="number" id="input-lat" step="0.0001" placeholder="37.5665"></label>
+        <label>경도 <input type="number" id="input-lon" step="0.0001" placeholder="126.9780"></label>
+        <button type="submit">확인</button>
+      </form>
+    </div>
+    <main id="main-screen" class="screen hidden">
+      <section class="compass-section">
+        <div id="compass-container"></div>
+      </section>
+      <section class="info-card">
+        <div class="info-row">
+          <span class="info-label">방향</span>
+          <span id="info-direction" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">방위각</span>
+          <span id="info-azimuth" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">고도</span>
+          <span id="info-altitude" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">위상</span>
+          <span id="info-phase" class="info-value">—</span>
+        </div>
+      </section>
+      <section class="altitude-section">
+        <div id="altitude-container"></div>
+      </section>
+      <div id="below-horizon-msg" class="horizon-msg hidden">
+        🌑 현재 달이 지평선 아래에 있습니다
+      </div>
+      <button id="compass-permission-btn" class="permission-btn hidden">
+        나침반 활성화
+      </button>
+      <footer class="location-footer">
+        <span id="info-coords" class="coords-text"></span>
+      </footer>
+    </main>
+  </div>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+{
+  "name": "Lunar — 달 위치",
+  "short_name": "Lunar",
+  "description": "현재 위치 기반 달의 방향과 고도를 실시간으로 확인",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0a0a1a",
+  "theme_color": "#0a0a1a",
+  "orientation": "portrait",
+  "lang": "ko",
+  "icons": [
+    { "src": "public/icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
