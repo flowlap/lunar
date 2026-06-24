@@ -262,3 +262,67 @@ body {
   font-size: 14px;
   line-height: 1;
 }
+
+.photo-day-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.photo-day-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: #0e0e22;
+  border-radius: 10px;
+  border-left: 3px solid var(--accent-moon);
+}
+
+.photo-day-item.rank-2 { border-left-color: #c0c0c0; }
+.photo-day-item.rank-3 { border-left-color: #cd7f32; }
+
+.photo-day-stars {
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.photo-day-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.photo-day-date {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.photo-day-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.photo-tag {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: #1e1e3a;
+  color: var(--accent-moon);
+  border: 1px solid #3a3a5a;
+  white-space: nowrap;
+}
+
+.photo-tag.tag-golden { color: #ff9f43; border-color: #ff9f43; }
+.photo-tag.tag-super  { color: #4fc3f7; border-color: #4fc3f7; }
+
+.photo-day-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}

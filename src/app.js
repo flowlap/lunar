@@ -1,5 +1,5 @@
 import { getCurrentPosition, watchPosition } from './location.js'
-import { getMoonData, getNextMoonrise, getMoonTimes, getMoonDistanceData, getDayAltitudes, getMonthPhases, getNextFullMoon } from './moon.js'
+import { getMoonData, getNextMoonrise, getMoonTimes, getMoonDistanceData, getDayAltitudes, getMonthPhases, getNextFullMoon, getPhotographyDays } from './moon.js'
 import { initCompass, updateCompass, renderAltitude, renderTrajectory } from './compass.js'
 import { getOrientationSupport, requestOrientationPermission, startWatchingHeading, stopWatchingHeading } from './orientation.js'
 
@@ -199,8 +199,74 @@ async function updateMoonDisplay() {
   const phases = getMonthPhases(localYear, localMonth - 1)
   renderPhaseCalendar(els.phaseCalendar, phases, localDay)
 
+  // 달 사진 추천일
+  const photoDays = getPhotographyDays(localNoon, latitude, longitude, 30)
+  renderPhotoDays(document.getElementById('photo-days'), photoDays, tz)
+
   els.infoCoords.textContent = latitude.toFixed(4) + '°N ' + longitude.toFixed(4) + '°E ±' + accuracy.toFixed(0) + 'm'
   els.updateTime.textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz })
+}
+
+function renderPhotoDays(containerEl, days, tz) {
+  containerEl.innerHTML = ''
+  if (!days.length) {
+    containerEl.textContent = '향후 30일 내 추천일 없음'
+    return
+  }
+  const list = document.createElement('div')
+  list.className = 'photo-day-list'
+
+  days.forEach((d, idx) => {
+    const item = document.createElement('div')
+    item.className = `photo-day-item rank-${idx + 1}`
+
+    const stars = '★'.repeat(d.stars) + '☆'.repeat(3 - d.stars)
+    const starsEl = document.createElement('div')
+    starsEl.className = 'photo-day-stars'
+    starsEl.textContent = stars
+    starsEl.style.color = idx === 0 ? '#f5d87a' : idx === 1 ? '#c0c0c0' : '#cd7f32'
+
+    const info = document.createElement('div')
+    info.className = 'photo-day-info'
+
+    const dateEl = document.createElement('div')
+    dateEl.className = 'photo-day-date'
+    dateEl.textContent = d.date.toLocaleDateString('ko-KR', {
+      timeZone: tz, month: 'long', day: 'numeric', weekday: 'short'
+    })
+
+    const tagsEl = document.createElement('div')
+    tagsEl.className = 'photo-day-tags'
+    d.tags.forEach(tag => {
+      const span = document.createElement('span')
+      span.className = 'photo-tag' +
+        (tag.includes('골든') || tag.includes('일몰') ? ' tag-golden' : '') +
+        (tag.includes('슈퍼') ? ' tag-super' : '')
+      span.textContent = tag
+      tagsEl.appendChild(span)
+    })
+
+    const metaEl = document.createElement('div')
+    metaEl.className = 'photo-day-meta'
+    const illumPct = (d.illumination * 100).toFixed(0)
+    const distKm = d.distance.toLocaleString('ko-KR')
+    const moonriseStr = d.moonrise
+      ? d.moonrise.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: tz })
+      : '—'
+    const sunsetStr = d.sunset
+      ? d.sunset.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: tz })
+      : '—'
+    metaEl.textContent = `조도 ${illumPct}% · 거리 ${distKm}km · 월출 ${moonriseStr} / 일몰 ${sunsetStr}`
+
+    info.appendChild(dateEl)
+    info.appendChild(tagsEl)
+    info.appendChild(metaEl)
+    item.appendChild(starsEl)
+    item.appendChild(info)
+    list.appendChild(item)
+  })
+
+  containerEl.appendChild(list)
 }
 
 function renderPhaseCalendar(containerEl, phases, today) {
