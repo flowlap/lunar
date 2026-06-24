@@ -57,6 +57,55 @@
       <div id="below-horizon-msg" class="horizon-msg hidden">
         🌑 현재 달이 지평선 아래에 있습니다
       </div>
+
+      <!-- 월출 / 월몰 -->
+      <section class="info-card">
+        <div class="card-title">월출 / 월몰</div>
+        <div class="info-row">
+          <span class="info-label">🌅 월출</span>
+          <span id="info-moonrise" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">🌇 월몰</span>
+          <span id="info-moonset" class="info-value">—</span>
+        </div>
+      </section>
+
+      <!-- 달까지의 거리 -->
+      <section class="info-card">
+        <div class="card-title">달까지의 거리</div>
+        <div class="info-row">
+          <span class="info-label">현재 거리</span>
+          <span id="info-distance" class="info-value">—</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">평균 대비</span>
+          <span id="info-distance-diff" class="info-value">—</span>
+        </div>
+        <div id="supermoon-badge" class="supermoon-badge hidden">🌕 슈퍼문 — 평소보다 가까운 달!</div>
+        <div id="minimoon-badge" class="minimoon-badge hidden">🌑 미니문 — 평소보다 먼 달</div>
+      </section>
+
+      <!-- 오늘의 달 궤적 -->
+      <section class="info-card">
+        <div class="card-title">오늘의 달 궤적</div>
+        <div id="trajectory-container" class="trajectory-wrap"></div>
+      </section>
+
+      <!-- 다음 보름달 D-day -->
+      <section class="info-card">
+        <div class="info-row">
+          <span class="info-label">🌕 다음 보름달</span>
+          <span id="info-fullmoon" class="info-value">—</span>
+        </div>
+      </section>
+
+      <!-- 이번 달 위상 달력 -->
+      <section class="info-card">
+        <div class="card-title">이번 달 위상</div>
+        <div id="phase-calendar"></div>
+      </section>
+
       <button id="compass-permission-btn" class="permission-btn hidden">
         나침반 활성화
       </button>

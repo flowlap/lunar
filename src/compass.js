@@ -231,3 +231,68 @@ export function renderAltitude(containerEl, altitudeDeg) {
 
   containerEl.appendChild(svg);
 }
+
+export function renderTrajectory(containerEl, altitudes, currentHour) {
+  const existing = document.getElementById('trajectory-svg')
+  if (existing) existing.remove()
+
+  const W = 280, H = 130
+  const svg = createSVGEl('svg', { id: 'trajectory-svg', width: W, height: H, viewBox: `0 0 ${W} ${H}` })
+
+  const padL = 26, padR = 8, padT = 8, padB = 22
+  const gW = W - padL - padR
+  const gH = H - padT - padB
+  const maxAlt = 90, minAlt = -20
+
+  const toX = h => padL + (h / 23) * gW
+  const toY = a => padT + gH - ((Math.max(minAlt, Math.min(maxAlt, a)) - minAlt) / (maxAlt - minAlt)) * gH
+  const hy = toY(0)
+
+  for (const deg of [30, 60, 90]) {
+    const y = toY(deg)
+    svg.appendChild(createSVGEl('line', { x1: padL, y1: y, x2: W - padR, y2: y, stroke: '#1e1e3a', 'stroke-width': '1' }))
+    const t = createSVGEl('text', { x: padL - 3, y: y + 3, fill: '#8888aa', 'font-size': '8', 'text-anchor': 'end' })
+    t.textContent = `${deg}°`
+    svg.appendChild(t)
+  }
+
+  svg.appendChild(createSVGEl('line', { x1: padL, y1: hy, x2: W - padR, y2: hy, stroke: '#4fc3f7', 'stroke-width': '1', 'stroke-dasharray': '4,3' }))
+  const hzLabel = createSVGEl('text', { x: padL - 3, y: hy + 3, fill: '#4fc3f7', 'font-size': '8', 'text-anchor': 'end' })
+  hzLabel.textContent = '0°'
+  svg.appendChild(hzLabel)
+
+  for (const h of [0, 6, 12, 18, 23]) {
+    const label = createSVGEl('text', { x: toX(h), y: H - 5, fill: '#8888aa', 'font-size': '8', 'text-anchor': 'middle' })
+    label.textContent = h === 23 ? '24시' : `${h}시`
+    svg.appendChild(label)
+  }
+
+  let fillD = `M ${toX(0)} ${hy}`
+  for (let i = 0; i < 24; i++) fillD += ` L ${toX(i)} ${altitudes[i] > 0 ? toY(altitudes[i]) : hy}`
+  fillD += ` L ${toX(23)} ${hy} Z`
+  svg.appendChild(createSVGEl('path', { d: fillD, fill: '#f5d87a', opacity: '0.12' }))
+
+  let fullD = `M ${toX(0)} ${toY(altitudes[0])}`
+  for (let i = 1; i < 24; i++) fullD += ` L ${toX(i)} ${toY(altitudes[i])}`
+  svg.appendChild(createSVGEl('path', { d: fullD, fill: 'none', stroke: '#333355', 'stroke-width': '1.5' }))
+
+  let seg = null
+  for (let i = 0; i < 24; i++) {
+    if (altitudes[i] > 0) {
+      seg = seg === null ? `M ${toX(i)} ${toY(altitudes[i])}` : seg + ` L ${toX(i)} ${toY(altitudes[i])}`
+    } else if (seg) {
+      svg.appendChild(createSVGEl('path', { d: seg, fill: 'none', stroke: '#f5d87a', 'stroke-width': '2' }))
+      seg = null
+    }
+  }
+  if (seg) svg.appendChild(createSVGEl('path', { d: seg, fill: 'none', stroke: '#f5d87a', 'stroke-width': '2' }))
+
+  if (currentHour >= 0 && currentHour < 24) {
+    const cx = toX(currentHour)
+    svg.appendChild(createSVGEl('line', { x1: cx, y1: padT, x2: cx, y2: H - padB, stroke: '#ff6b6b', 'stroke-width': '1', 'stroke-dasharray': '3,3' }))
+    const curAlt = altitudes[currentHour]
+    svg.appendChild(createSVGEl('circle', { cx, cy: toY(curAlt), r: '4', fill: curAlt > 0 ? '#f5d87a' : '#444466', stroke: '#ff6b6b', 'stroke-width': '1.5' }))
+  }
+
+  containerEl.appendChild(svg)
+}

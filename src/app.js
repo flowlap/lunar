@@ -1,6 +1,6 @@
 import { getCurrentPosition, watchPosition } from './location.js'
-import { getMoonData, getNextMoonrise } from './moon.js'
-import { initCompass, updateCompass, renderAltitude } from './compass.js'
+import { getMoonData, getNextMoonrise, getMoonTimes, getMoonDistanceData, getDayAltitudes, getMonthPhases, getNextFullMoon } from './moon.js'
+import { initCompass, updateCompass, renderAltitude, renderTrajectory } from './compass.js'
 import { getOrientationSupport, requestOrientationPermission, startWatchingHeading, stopWatchingHeading } from './orientation.js'
 
 if ('serviceWorker' in navigator) {
@@ -30,6 +30,15 @@ const els = {
   compassPermissionBtn: $('compass-permission-btn'),
   updateTime: $('update-time'),
   infoCoords: $('info-coords'),
+  infoMoonrise: $('info-moonrise'),
+  infoMoonset: $('info-moonset'),
+  infoDistance: $('info-distance'),
+  infoDistanceDiff: $('info-distance-diff'),
+  supermoonBadge: $('supermoon-badge'),
+  minimoonBadge: $('minimoon-badge'),
+  trajectoryContainer: $('trajectory-container'),
+  infoFullmoon: $('info-fullmoon'),
+  phaseCalendar: $('phase-calendar'),
 }
 
 function showScreen(name) {
@@ -55,7 +64,8 @@ async function updateMoonDisplay() {
   if (!state.position) return
 
   const { latitude, longitude, accuracy } = state.position
-  const moonData = getMoonData(new Date(), latitude, longitude)
+  const now = new Date()
+  const moonData = getMoonData(now, latitude, longitude)
   state.moonData = moonData
 
   const { azimuthDeg, altitudeDeg, directionLabel, phaseIcon, phaseLabel, isVisible } = moonData
@@ -70,17 +80,77 @@ async function updateMoonDisplay() {
 
   if (!isVisible) {
     els.belowHorizonMsg.classList.remove('hidden')
-    const nextRise = getNextMoonrise(new Date(), latitude, longitude)
+    const nextRise = getNextMoonrise(now, latitude, longitude)
     if (nextRise) {
       const timeStr = nextRise.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
-      els.belowHorizonMsg.textContent = '달이 지평선 아래에 있습니다. 다음 월출: ' + timeStr
+      els.belowHorizonMsg.textContent = '🌑 달이 지평선 아래에 있습니다. 다음 월출: ' + timeStr
     }
   } else {
     els.belowHorizonMsg.classList.add('hidden')
   }
 
+  // 월출 / 월몰
+  const moonTimes = getMoonTimes(now, latitude, longitude)
+  const fmt = d => d ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '—'
+  if (moonTimes.alwaysUp) {
+    els.infoMoonrise.textContent = '종일 가시'
+    els.infoMoonset.textContent = '종일 가시'
+  } else if (moonTimes.alwaysDown) {
+    els.infoMoonrise.textContent = '종일 불가'
+    els.infoMoonset.textContent = '종일 불가'
+  } else {
+    els.infoMoonrise.textContent = fmt(moonTimes.rise)
+    els.infoMoonset.textContent = fmt(moonTimes.set)
+  }
+
+  // 달까지의 거리
+  const dist = getMoonDistanceData(now, latitude, longitude)
+  els.infoDistance.textContent = dist.distance.toLocaleString('ko-KR') + ' km'
+  const diffSign = dist.closerThanAvg ? '▼ ' : '▲ '
+  const diffColor = dist.closerThanAvg ? '#f5d87a' : '#8888aa'
+  els.infoDistanceDiff.textContent = diffSign + dist.percentDiff + '%'
+  els.infoDistanceDiff.style.color = diffColor
+  els.supermoonBadge.classList.toggle('hidden', !dist.isSuperMoon)
+  els.minimoonBadge.classList.toggle('hidden', !dist.isMiniMoon)
+
+  // 오늘의 달 궤적
+  const altitudes = getDayAltitudes(now, latitude, longitude)
+  renderTrajectory(els.trajectoryContainer, altitudes, now.getHours())
+
+  // 다음 보름달 D-day
+  const nextFull = getNextFullMoon(now)
+  if (nextFull) {
+    els.infoFullmoon.textContent = nextFull.daysLeft === 0
+      ? '오늘!'
+      : `D-${nextFull.daysLeft} (${nextFull.date.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric' })})`
+  }
+
+  // 이번 달 위상 달력
+  const phases = getMonthPhases(now.getFullYear(), now.getMonth())
+  renderPhaseCalendar(els.phaseCalendar, phases, now.getDate())
+
   els.infoCoords.textContent = latitude.toFixed(4) + '°N ' + longitude.toFixed(4) + '°E ±' + accuracy.toFixed(0) + 'm'
-  els.updateTime.textContent = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  els.updateTime.textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+}
+
+function renderPhaseCalendar(containerEl, phases, today) {
+  containerEl.innerHTML = ''
+  const grid = document.createElement('div')
+  grid.className = 'phase-grid'
+  for (const { day, icon } of phases) {
+    const cell = document.createElement('div')
+    cell.className = 'phase-cell' + (day === today ? ' phase-cell-today' : '')
+    const dayEl = document.createElement('span')
+    dayEl.className = 'phase-day'
+    dayEl.textContent = day
+    const iconEl = document.createElement('span')
+    iconEl.className = 'phase-icon'
+    iconEl.textContent = icon
+    cell.appendChild(dayEl)
+    cell.appendChild(iconEl)
+    grid.appendChild(cell)
+  }
+  containerEl.appendChild(grid)
 }
 
 function setupOrientationUI() {

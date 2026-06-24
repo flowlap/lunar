@@ -183,3 +183,74 @@ body {
   display: flex;
   justify-content: center;
 }
+
+.card-title {
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+}
+
+.supermoon-badge {
+  background: linear-gradient(135deg, #f5d87a22, #f5d87a44);
+  border: 1px solid var(--accent-moon);
+  color: var(--accent-moon);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.minimoon-badge {
+  background: linear-gradient(135deg, #88888a22, #88888a33);
+  border: 1px solid var(--text-secondary);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: center;
+}
+
+.trajectory-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.phase-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.phase-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 2px;
+  border-radius: 6px;
+}
+
+.phase-cell-today {
+  background-color: #1e1e3a;
+  outline: 1px solid var(--accent-moon);
+}
+
+.phase-day {
+  font-size: 10px;
+  color: var(--text-secondary);
+  line-height: 1;
+}
+
+.phase-cell-today .phase-day {
+  color: var(--accent-moon);
+  font-weight: 700;
+}
+
+.phase-icon {
+  font-size: 14px;
+  line-height: 1;
+}
