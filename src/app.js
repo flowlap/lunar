@@ -1,5 +1,5 @@
 import { getCurrentPosition, watchPosition } from './location.js'
-import { getMoonData, getNextMoonrise, getMoonTimes, getMoonDistanceData, getDayAltitudes, getMonthPhases, getNextFullMoon, getPhotographyDays } from './moon.js'
+import { getMoonData, getNextMoonrise, getMoonTimes, getMoonDistanceData, getDayAltitudes, getMonthPhases, getNextFullMoon, getPhotographyRecommendations } from './moon.js'
 import { initCompass, updateCompass, renderAltitude, renderTrajectory } from './compass.js'
 import { getOrientationSupport, requestOrientationPermission, startWatchingHeading, stopWatchingHeading } from './orientation.js'
 
@@ -16,6 +16,7 @@ const state = {
   updateTimer: null,
   watchId: null,
   timezone: null,
+  photoType: 'full',
 }
 
 const $ = id => document.getElementById(id)
@@ -200,14 +201,63 @@ async function updateMoonDisplay() {
   renderPhaseCalendar(els.phaseCalendar, phases, localDay)
 
   // 달 사진 추천일
-  const photoDays = getPhotographyDays(localNoon, latitude, longitude, 30)
-  renderPhotoDays(document.getElementById('photo-days'), photoDays, tz)
+  renderPhotoDaysForCurrentType()
 
   els.infoCoords.textContent = latitude.toFixed(4) + '°N ' + longitude.toFixed(4) + '°E ±' + accuracy.toFixed(0) + 'm'
   els.updateTime.textContent = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: tz })
 }
 
-function renderPhotoDays(containerEl, days, tz) {
+function getPhotoDescription(day, type, fmtTime) {
+  const illumPct = (day.illumination * 100).toFixed(0)
+  const moonriseStr = day.moonrise ? fmtTime(day.moonrise) : null
+
+  if (type === 'surface') {
+    if (day.score >= 85) {
+      return `조도 ${illumPct}%로 달 표면 촬영에 최적입니다. 터미네이터(명암 경계)가 선명해 크레이터와 산맥 그림자가 잘 나타납니다. 망원렌즈나 망원경 촬영에 적합합니다.`
+    }
+    if (day.score >= 60) {
+      return `조도 ${illumPct}%로 달 표면 디테일을 촬영할 수 있습니다. 크레이터 일부를 확인할 수 있습니다.`
+    }
+    return `조도 ${illumPct}%로 표면 디테일 촬영에는 적합하지 않습니다. 상현달·하현달에 가까운 날을 선택하세요.`
+  }
+
+  if (type === 'full') {
+    if (day.score >= 90) {
+      const sup = day.tags.includes('슈퍼문') ? ' 슈퍼문으로 평소보다 크게 보입니다.' : ''
+      return `조도 ${illumPct}%의 보름달입니다. 달 전체가 밝게 빛나 광각~표준 렌즈로 촬영하기 좋습니다.${sup}`
+    }
+    if (day.score >= 60) {
+      return `조도 ${illumPct}%로 거의 보름달에 가깝습니다. 둥근 달의 모습을 촬영할 수 있습니다.`
+    }
+    return `조도 ${illumPct}%로 보름달까지 아직 시간이 있습니다. 더 밝은 날을 선택하세요.`
+  }
+
+  if (type === 'landscape') {
+    if (day.score >= 80 && moonriseStr) {
+      return `${moonriseStr}에 달이 떠오릅니다. 달 고도가 낮아 건물, 산, 나무와 함께 대형 달 풍경 사진을 촬영하기 매우 좋습니다.`
+    }
+    if (day.score >= 60) {
+      const timeHint = moonriseStr ? ` 월출 시간은 ${moonriseStr}입니다.` : ''
+      return `조도 ${illumPct}%의 달과 풍경을 함께 담을 수 있는 날입니다.${timeHint}`
+    }
+    return `위상과 월출 조건이 달 풍경 촬영에 최적이 아닙니다. 더 높은 점수의 날을 선택하세요.`
+  }
+
+  return ''
+}
+
+function renderPhotoDaysForCurrentType() {
+  if (!state.position) return
+  const { latitude, longitude } = state.position
+  const now = new Date()
+  const tz = state.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  const localNoon = makeLocalNoon(now, tz)
+  const fmtTime = makeFmt(tz)
+  const days = getPhotographyRecommendations(localNoon, latitude, longitude, state.photoType, 30)
+  renderPhotoDays(document.getElementById('photo-days'), days, state.photoType, tz, fmtTime)
+}
+
+function renderPhotoDays(containerEl, days, type, tz, fmtTime) {
   containerEl.innerHTML = ''
   if (!days.length) {
     containerEl.textContent = '향후 30일 내 추천일 없음'
@@ -216,15 +266,16 @@ function renderPhotoDays(containerEl, days, tz) {
   const list = document.createElement('div')
   list.className = 'photo-day-list'
 
+  const starColors = ['#f5d87a', '#c0c0c0', '#cd7f32', '#8888aa', '#8888aa']
+
   days.forEach((d, idx) => {
     const item = document.createElement('div')
     item.className = `photo-day-item rank-${idx + 1}`
 
-    const stars = '★'.repeat(d.stars) + '☆'.repeat(3 - d.stars)
     const starsEl = document.createElement('div')
     starsEl.className = 'photo-day-stars'
-    starsEl.textContent = stars
-    starsEl.style.color = idx === 0 ? '#f5d87a' : idx === 1 ? '#c0c0c0' : '#cd7f32'
+    starsEl.textContent = '★'.repeat(d.stars) + '☆'.repeat(5 - d.stars)
+    starsEl.style.color = starColors[idx] || '#8888aa'
 
     const info = document.createElement('div')
     info.className = 'photo-day-info'
@@ -240,26 +291,32 @@ function renderPhotoDays(containerEl, days, tz) {
     d.tags.forEach(tag => {
       const span = document.createElement('span')
       span.className = 'photo-tag' +
-        (tag.includes('골든') || tag.includes('일몰') ? ' tag-golden' : '') +
+        (tag.includes('골든') || tag.includes('일몰') || tag.includes('일출') ? ' tag-golden' : '') +
         (tag.includes('슈퍼') ? ' tag-super' : '')
       span.textContent = tag
       tagsEl.appendChild(span)
     })
 
+    const descEl = document.createElement('div')
+    descEl.className = 'photo-day-desc'
+    descEl.textContent = getPhotoDescription(d, type, fmtTime)
+
     const metaEl = document.createElement('div')
     metaEl.className = 'photo-day-meta'
     const illumPct = (d.illumination * 100).toFixed(0)
-    const distKm = d.distance.toLocaleString('ko-KR')
-    const moonriseStr = d.moonrise
-      ? d.moonrise.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: tz })
-      : '—'
-    const sunsetStr = d.sunset
-      ? d.sunset.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', timeZone: tz })
-      : '—'
-    metaEl.textContent = `조도 ${illumPct}% · 거리 ${distKm}km · 월출 ${moonriseStr} / 일몰 ${sunsetStr}`
+    const metaParts = [`조도 ${illumPct}%`]
+    if (type === 'landscape') {
+      if (d.moonrise) metaParts.push(`월출 ${fmtTime(d.moonrise)}`)
+      if (d.sunset) metaParts.push(`일몰 ${fmtTime(d.sunset)}`)
+    } else {
+      metaParts.push(`거리 ${d.distance.toLocaleString('ko-KR')}km`)
+      if (d.moonrise) metaParts.push(`월출 ${fmtTime(d.moonrise)}`)
+    }
+    metaEl.textContent = metaParts.join(' · ')
 
     info.appendChild(dateEl)
     info.appendChild(tagsEl)
+    info.appendChild(descEl)
     info.appendChild(metaEl)
     item.appendChild(starsEl)
     item.appendChild(info)
@@ -327,6 +384,15 @@ function setupOrientationUI() {
 async function init() {
   showScreen('loading')
   setupOrientationUI()
+
+  document.querySelectorAll('.photo-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.photo-type-btn').forEach(b => b.classList.remove('active'))
+      btn.classList.add('active')
+      state.photoType = btn.dataset.type
+      renderPhotoDaysForCurrentType()
+    })
+  })
 
   try {
     state.position = await getCurrentPosition()

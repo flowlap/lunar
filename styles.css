@@ -322,7 +322,44 @@ body {
 .photo-tag.tag-golden { color: #ff9f43; border-color: #ff9f43; }
 .photo-tag.tag-super  { color: #4fc3f7; border-color: #4fc3f7; }
 
-.photo-day-meta {
+.photo-day-desc {
   font-size: 12px;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-bottom: 4px;
+}
+
+.photo-day-meta {
+  font-size: 11px;
   color: var(--text-secondary);
+}
+
+.photo-type-selector {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.photo-type-btn {
+  flex: 1;
+  padding: 7px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--bg-card-border);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  letter-spacing: -0.2px;
+}
+
+.photo-type-btn.active {
+  background: var(--accent-moon);
+  color: #0a0a1a;
+  border-color: var(--accent-moon);
+}
+
+.photo-day-item.rank-4,
+.photo-day-item.rank-5 {
+  border-left-color: #3a3a5a;
 }

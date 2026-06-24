@@ -132,9 +132,8 @@ export function getNextFullMoon(fromDate) {
   return null
 }
 
-export function getPhotographyDays(localNoon, lat, lon, days = 30) {
+export function getPhotographyRecommendations(localNoon, lat, lon, type = 'full', days = 30) {
   if (!window.SunCalc) throw new Error('SunCalc not loaded')
-
   const results = []
 
   for (let i = 0; i < days; i++) {
@@ -143,76 +142,102 @@ export function getPhotographyDays(localNoon, lat, lon, days = 30) {
     const moonPos = SunCalc.getMoonPosition(noon, lat, lon)
     const moonT = SunCalc.getMoonTimes(noon, lat, lon)
     const sunT = SunCalc.getTimes(noon, lat, lon)
+
+    const illumPct = illum.fraction * 100
     const phase = illum.phase
-    const dist = moonPos.distance
+    const dist = Math.round(moonPos.distance)
 
-    // 위상 점수: 보름달(0.5) 중심으로 ±0.1 범위 최고점
-    const phaseDist = Math.abs(phase - 0.5)
-    const phaseScore = phaseDist < 0.03 ? 100
-      : phaseDist < 0.07 ? 85
-      : phaseDist < 0.12 ? 60
-      : phaseDist < 0.18 ? 30
-      : 0
-
-    // 거리 점수: 가까울수록 높음
-    const distScore = dist < 359000 ? 100
-      : dist < 363000 ? 90
-      : dist < 370000 ? 75
-      : dist < 380000 ? 55
-      : dist < 390000 ? 40
-      : 25
-
-    // 골든아워 점수: 월출-일몰 시간 차이 (분)
-    let goldenScore = 0
-    if (moonT.rise && sunT.sunset) {
-      const diffMin = Math.abs(moonT.rise - sunT.sunset) / 60000
-      goldenScore = diffMin < 15 ? 100
-        : diffMin < 30 ? 90
-        : diffMin < 60 ? 70
-        : diffMin < 90 ? 50
-        : diffMin < 120 ? 30
-        : 0
-    }
-    if (moonT.set && sunT.sunrise) {
-      const diffMin = Math.abs(moonT.set - sunT.sunrise) / 60000
-      const setScore = diffMin < 15 ? 90
-        : diffMin < 30 ? 75
-        : diffMin < 60 ? 55
-        : diffMin < 90 ? 35
-        : 0
-      goldenScore = Math.max(goldenScore, setScore)
-    }
-
-    const totalScore = phaseScore * 0.5 + distScore * 0.15 + goldenScore * 0.35
-
-    if (totalScore < 20) continue
-
+    let score = 0
     const tags = []
-    if (phaseDist < 0.03) tags.push('보름달')
-    else if (phaseDist < 0.07) tags.push('거의 보름달')
-    else if (phaseDist < 0.12) tags.push('대형 달')
-    if (dist < 363000) tags.push('슈퍼문')
-    else if (dist < 370000) tags.push('달이 가까움')
-    if (goldenScore >= 90) tags.push('월출=일몰')
-    else if (goldenScore >= 70) tags.push('골든아워')
-    else if (goldenScore >= 50) tags.push('일몰 근접')
 
-    const stars = totalScore >= 80 ? 3 : totalScore >= 55 ? 2 : 1
+    if (type === 'surface') {
+      // 터미네이터(명암 경계)가 가장 선명한 위상 우선
+      if (illumPct >= 45 && illumPct <= 55) {
+        score = 100
+        tags.push(phase < 0.5 ? '상현달' : '하현달')
+      } else if (illumPct >= 20 && illumPct < 45) {
+        score = 90
+        tags.push('초승달')
+      } else if (illumPct > 55 && illumPct <= 70) {
+        score = 85
+        tags.push('볼록달')
+      } else if (illumPct > 70 && illumPct <= 90) {
+        score = 60
+        tags.push('볼록달')
+      } else {
+        score = illumPct > 90 ? 30 : 10
+        tags.push(illumPct > 90 ? '보름달' : '그믐달')
+      }
+      if (score < 30) continue
+
+    } else if (type === 'full') {
+      // 조도 95%+ 최고점
+      if (illumPct >= 95) {
+        score = 100
+        tags.push('보름달')
+      } else if (illumPct >= 90) {
+        score = 80
+        tags.push('거의 보름달')
+      } else if (illumPct >= 80) {
+        score = 60
+        tags.push('볼록달')
+      } else {
+        score = 30
+      }
+      if (dist < 363000) tags.push('슈퍼문')
+      else if (dist < 370000) tags.push('달이 가까움')
+      if (score < 30) continue
+
+    } else if (type === 'landscape') {
+      // 보름달 ±3일 기준 위상 보너스
+      const phaseDist = Math.abs(phase - 0.5)
+      if (phaseDist < 0.04) { score += 60; tags.push('보름달') }
+      else if (phaseDist < 0.1) { score += 40; tags.push('거의 보름달') }
+      else if (phaseDist < 0.15) { score += 20 }
+
+      // 월출≈일몰 (저녁 골든아워)
+      if (moonT.rise && sunT.sunset) {
+        const diffMin = Math.abs(moonT.rise - sunT.sunset) / 60000
+        if (diffMin < 60) { score += 20; tags.push('월출≈일몰') }
+      }
+      // 월몰≈일출 (새벽 골든아워), 위 조건 미충족 시
+      if (moonT.set && sunT.sunrise && !tags.some(t => t.includes('월출'))) {
+        const diffMin = Math.abs(moonT.set - sunT.sunrise) / 60000
+        if (diffMin < 60) { score += 20; tags.push('월몰≈일출') }
+      }
+
+      // 일몰/일출 시 달 고도 0~10° (저고도 풍경 구도)
+      if (sunT.sunset) {
+        const pos = SunCalc.getMoonPosition(sunT.sunset, lat, lon)
+        const alt = pos.altitude * 180 / Math.PI
+        if (alt >= 0 && alt <= 10) score += 20
+      } else if (sunT.sunrise) {
+        const pos = SunCalc.getMoonPosition(sunT.sunrise, lat, lon)
+        const alt = pos.altitude * 180 / Math.PI
+        if (alt >= 0 && alt <= 10) score += 20
+      }
+
+      if (score < 20) continue
+    }
+
+    const stars = score >= 85 ? 5 : score >= 70 ? 4 : score >= 55 ? 3 : score >= 40 ? 2 : 1
 
     results.push({
       date: noon,
-      totalScore,
+      score,
+      stars,
       phase,
-      distance: Math.round(dist),
+      distance: dist,
       illumination: illum.fraction,
       moonrise: moonT.rise || null,
+      moonset: moonT.set || null,
+      sunrise: sunT.sunrise || null,
       sunset: sunT.sunset || null,
       tags,
-      stars,
     })
   }
 
-  return results.sort((a, b) => b.totalScore - a.totalScore).slice(0, 5)
+  return results.sort((a, b) => b.score - a.score).slice(0, 5)
 }
 
 export function getNextMoonrise(date, lat, lon) {
