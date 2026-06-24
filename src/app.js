@@ -4,7 +4,7 @@ import { initCompass, updateCompass, renderAltitude, renderTrajectory } from './
 import { getOrientationSupport, requestOrientationPermission, startWatchingHeading, stopWatchingHeading } from './orientation.js'
 import { fetchWeatherForecast, getNightCloudCover, getWeatherInfo } from './weather.js'
 
-const APP_VERSION = '1.3'
+const APP_VERSION = '1.4'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
