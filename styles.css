@@ -377,6 +377,47 @@ body {
 .photo-tag.tag-weather-fair  { color: #fed330; border-color: #fed330; }
 .photo-tag.tag-weather-poor  { color: #fd9644; border-color: #fd9644; }
 .photo-tag.tag-weather-bad   { color: #8888aa; border-color: #8888aa; }
+.photo-tag.tag-weather-none  { color: #4a4a6a; border-color: #4a4a6a; font-style: italic; }
+
+/* 날씨 로딩 인디케이터 */
+.weather-loading {
+  padding: 6px 0 4px;
+}
+
+.weather-loading-text {
+  display: block;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.weather-loading-track {
+  width: 100%;
+  height: 2px;
+  background: var(--bg-card-border);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.weather-loading-bar {
+  height: 100%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, var(--accent-compass), transparent);
+  animation: weather-scan 1.4s ease-in-out infinite;
+}
+
+@keyframes weather-scan {
+  0%   { transform: translateX(-120%); }
+  100% { transform: translateX(340%); }
+}
+
+/* 앱 버전 */
+.app-version {
+  font-size: 10px;
+  color: #2e2e4a;
+  margin-top: 6px;
+  letter-spacing: 0.4px;
+}
 
 .photo-day-desc {
   font-size: 12px;

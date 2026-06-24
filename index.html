@@ -122,11 +122,16 @@
           <button class="photo-type-btn" data-type="surface">🔭 표면 디테일</button>
           <button class="photo-type-btn" data-type="landscape">🏔 달 풍경</button>
         </div>
+        <div id="weather-loading" class="weather-loading hidden">
+          <span class="weather-loading-text">☁️ 날씨 예보 불러오는 중...</span>
+          <div class="weather-loading-track"><div class="weather-loading-bar"></div></div>
+        </div>
         <div id="photo-days"></div>
       </section>
 
       <footer class="location-footer">
         <span id="info-coords" class="coords-text"></span>
+        <div class="app-version" id="app-version"></div>
       </footer>
     </main>
   </div>

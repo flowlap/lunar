@@ -4,6 +4,8 @@ import { initCompass, updateCompass, renderAltitude, renderTrajectory } from './
 import { getOrientationSupport, requestOrientationPermission, startWatchingHeading, stopWatchingHeading } from './orientation.js'
 import { fetchWeatherForecast, getNightCloudCover, getWeatherInfo } from './weather.js'
 
+const APP_VERSION = '1.3'
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {})
@@ -23,6 +25,7 @@ const state = {
   timezone: null,
   photoType: 'full',
   weatherData: null,
+  weatherLoading: false,
 }
 
 const $ = id => document.getElementById(id)
@@ -267,14 +270,21 @@ function renderPhotoDaysForCurrentType() {
   const localNoon = makeLocalNoon(now, tz)
   const fmtTime = makeFmt(tz)
 
+  // 날씨 로딩 인디케이터
+  const loadingEl = document.getElementById('weather-loading')
+  if (loadingEl) loadingEl.classList.toggle('hidden', !state.weatherLoading)
+
   let days = getPhotographyRecommendations(localNoon, latitude, longitude, state.photoType, 30)
 
-  // 날씨 데이터가 있으면 천문 점수(60%) + 날씨 점수(40%) 블렌딩
+  // 날씨 데이터가 있으면 천문(60%) + 날씨(40%) 블렌딩
   if (state.weatherData) {
     days = days.map(d => {
       const cloudCover = getNightCloudCover(state.weatherData, d.date)
       const weatherInfo = getWeatherInfo(cloudCover)
-      if (!weatherInfo) return d
+      if (cloudCover === null) {
+        // 날씨 데이터 있지만 해당 날짜 예보 없음 (14일 초과)
+        return { ...d, cloudCover: null, weatherInfo: null, noForecast: true }
+      }
       const blended = Math.round(d.score * 0.6 + weatherInfo.score * 0.4)
       const stars = blended >= 85 ? 5 : blended >= 70 ? 4 : blended >= 55 ? 3 : blended >= 40 ? 2 : 1
       return { ...d, score: blended, cloudCover, weatherInfo, stars }
@@ -323,7 +333,12 @@ function renderPhotoDays(containerEl, days, type, tz, fmtTime) {
       span.textContent = tag
       tagsEl.appendChild(span)
     })
-    if (d.weatherInfo) {
+    if (d.noForecast) {
+      const noForecastSpan = document.createElement('span')
+      noForecastSpan.className = 'photo-tag tag-weather-none'
+      noForecastSpan.textContent = '예보 없음'
+      tagsEl.appendChild(noForecastSpan)
+    } else if (d.weatherInfo) {
       const wSpan = document.createElement('span')
       wSpan.className = `photo-tag ${d.weatherInfo.tagClass}`
       wSpan.textContent = `${d.weatherInfo.icon} ${d.weatherInfo.label}`
@@ -460,9 +475,15 @@ async function init() {
   state.timezone = await fetchTimezone(state.position.latitude, state.position.longitude)
 
   // 날씨 예보 백그라운드 로딩 (완료 시 추천일 자동 갱신)
+  state.weatherLoading = true
   fetchWeatherForecast(state.position.latitude, state.position.longitude).then(data => {
-    if (data) { state.weatherData = data; renderPhotoDaysForCurrentType() }
+    state.weatherLoading = false
+    state.weatherData = data || null
+    renderPhotoDaysForCurrentType()
   })
+
+  const verEl = document.getElementById('app-version')
+  if (verEl) verEl.textContent = `Lunar v${APP_VERSION}`
 
   initCompass(els.compassContainer)
   await updateMoonDisplay()
@@ -485,8 +506,12 @@ els.manualForm.addEventListener('submit', async (e) => {
   state.position = { latitude: lat, longitude: lon, accuracy: 0 }
   state.timezone = await fetchTimezone(lat, lon)
 
+  state.weatherLoading = true
+  state.weatherData = null
   fetchWeatherForecast(lat, lon).then(data => {
-    if (data) { state.weatherData = data; renderPhotoDaysForCurrentType() }
+    state.weatherLoading = false
+    state.weatherData = data || null
+    renderPhotoDaysForCurrentType()
   })
 
   initCompass(els.compassContainer)
