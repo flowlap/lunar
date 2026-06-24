@@ -351,7 +351,12 @@ function setupOrientationUI() {
 
   if (support === 'needs-permission') {
     els.compassPermissionBtn.classList.remove('hidden')
-    els.compassPermissionBtn.addEventListener('click', async () => {
+
+    let activated = false
+    const activateCompass = async () => {
+      if (activated) return
+      activated = true
+      document.removeEventListener('touchstart', onFirstTouch)
       const result = await requestOrientationPermission()
       if (result === 'granted') {
         startWatchingHeading(heading => {
@@ -365,8 +370,22 @@ function setupOrientationUI() {
           }
         })
         els.compassPermissionBtn.classList.add('hidden')
+      } else {
+        activated = false // 거부 시 재시도 허용
       }
-    })
+    }
+
+    // 버튼 직접 클릭
+    els.compassPermissionBtn.addEventListener('click', activateCompass)
+
+    // 메인 화면 표시 후 첫 터치 시 자동 실행 (강제 적용)
+    function onFirstTouch() {
+      if (els.mainScreen.classList.contains('hidden')) return
+      document.removeEventListener('touchstart', onFirstTouch)
+      activateCompass()
+    }
+    document.addEventListener('touchstart', onFirstTouch, { passive: true })
+
   } else if (support === 'available') {
     startWatchingHeading(heading => {
       state.deviceHeading = heading
