@@ -8,6 +8,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').catch(() => {})
   })
+  // 새 서비스 워커 활성화 시 자동 새로고침 — 항상 최신 파일 보장
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'SW_UPDATED') window.location.reload()
+  })
 }
 
 const state = {
