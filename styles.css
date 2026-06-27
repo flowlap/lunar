@@ -278,6 +278,58 @@ body {
   text-align: center;
 }
 
+/* ─── 거리 범례 ───────────────────────────────────── */
+.distance-legend {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.distance-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+}
+
+.dl-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dl-dot.dl-super { background: #4fc3f7; }
+.dl-dot.dl-avg   { background: #8888aa; }
+.dl-dot.dl-mini  { background: #a0a0c0; }
+
+.dl-label {
+  min-width: 42px;
+  font-weight: 600;
+  color: #a0a0c8;
+}
+
+.dl-value {
+  color: #7070a0;
+}
+
+/* ─── 조도 바 ─────────────────────────────────────── */
+.illum-bar-wrap {
+  margin-top: 6px;
+  height: 4px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.illum-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4a4a8a, #f5d87a);
+  border-radius: 2px;
+  transition: width 0.4s ease;
+}
+
 /* ─── 달 궤적 ─────────────────────────────────────── */
 .trajectory-wrap {
   overflow-x: auto;
@@ -383,6 +435,7 @@ body {
 
 .photo-tag.tag-golden { color: #ff9f43; border-color: #ff9f43; }
 .photo-tag.tag-super  { color: #4fc3f7; border-color: #4fc3f7; }
+.photo-tag.tag-mini   { color: #a0a0c8; border-color: #a0a0c8; }
 
 .photo-tag.tag-weather-clear { color: #26de81; border-color: #26de81; }
 .photo-tag.tag-weather-good  { color: #a3cb8c; border-color: #a3cb8c; }

@@ -4,7 +4,7 @@ import { initCompass, updateCompass, renderAltitude, renderTrajectory } from './
 import { getOrientationSupport, requestOrientationPermission, startWatchingHeading, stopWatchingHeading } from './orientation.js'
 import { fetchWeatherForecast, getNightCloudCover, getWeatherInfo } from './weather.js'
 
-const APP_VERSION = '1.5'
+const APP_VERSION = '1.6'
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -53,6 +53,8 @@ const els = {
   infoDistanceDiff: $('info-distance-diff'),
   supermoonBadge: $('supermoon-badge'),
   minimoonBadge: $('minimoon-badge'),
+  infoIllum: $('info-illum'),
+  infoTodayWeather: $('info-today-weather'),
   trajectoryContainer: $('trajectory-container'),
   infoFullmoon: $('info-fullmoon'),
   phaseCalendar: $('phase-calendar'),
@@ -185,6 +187,13 @@ async function updateMoonDisplay() {
   els.supermoonBadge.classList.toggle('hidden', !dist.isSuperMoon)
   els.minimoonBadge.classList.toggle('hidden', !dist.isMiniMoon)
 
+  // 오늘의 조도
+  const illumPct = (moonData.illumination * 100).toFixed(0)
+  els.infoIllum.textContent = illumPct + '% — ' + moonData.phaseLabel
+  const illumBar = document.getElementById('illum-bar')
+  if (illumBar) illumBar.style.width = illumPct + '%'
+  renderTodayWeather(tz)
+
   // 오늘의 달 궤적
   const altitudes = getDayAltitudes(localNoon, latitude, longitude)
   const localHour = (() => {
@@ -262,6 +271,19 @@ function getPhotoDescription(day, type, fmtTime) {
   return base
 }
 
+function renderTodayWeather(tz) {
+  const el = els.infoTodayWeather
+  if (!el) return
+  if (state.weatherLoading) { el.textContent = '불러오는 중...'; return }
+  if (!state.weatherData) { el.textContent = '—'; return }
+  const now = new Date()
+  const localNoon = makeLocalNoon(now, tz || state.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone)
+  const cloudCover = getNightCloudCover(state.weatherData, localNoon)
+  if (cloudCover === null) { el.textContent = '예보 없음'; return }
+  const info = getWeatherInfo(cloudCover)
+  el.textContent = `${info.icon} ${info.label} (운량 ${cloudCover}%)`
+}
+
 function renderPhotoDaysForCurrentType() {
   if (!state.position) return
   const { latitude, longitude } = state.position
@@ -329,7 +351,8 @@ function renderPhotoDays(containerEl, days, type, tz, fmtTime) {
       const span = document.createElement('span')
       span.className = 'photo-tag' +
         (tag.includes('골든') || tag.includes('일몰') || tag.includes('일출') ? ' tag-golden' : '') +
-        (tag.includes('슈퍼') ? ' tag-super' : '')
+        (tag === '슈퍼문' ? ' tag-super' : '') +
+        (tag === '미니문' ? ' tag-mini' : '')
       span.textContent = tag
       tagsEl.appendChild(span)
     })
@@ -480,6 +503,7 @@ async function init() {
     state.weatherLoading = false
     state.weatherData = data || null
     renderPhotoDaysForCurrentType()
+    renderTodayWeather()
   })
 
   const verEl = document.getElementById('app-version')
@@ -512,6 +536,7 @@ els.manualForm.addEventListener('submit', async (e) => {
     state.weatherLoading = false
     state.weatherData = data || null
     renderPhotoDaysForCurrentType()
+    renderTodayWeather()
   })
 
   initCompass(els.compassContainer)

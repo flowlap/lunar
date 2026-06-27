@@ -92,6 +92,37 @@
         </div>
         <div id="supermoon-badge" class="supermoon-badge hidden">🌕 슈퍼문 — 평소보다 가까운 달!</div>
         <div id="minimoon-badge" class="minimoon-badge hidden">🌑 미니문 — 평소보다 먼 달</div>
+        <div class="distance-legend">
+          <div class="distance-legend-item">
+            <span class="dl-dot dl-super"></span>
+            <span class="dl-label">슈퍼문</span>
+            <span class="dl-value">363,000 km 미만</span>
+          </div>
+          <div class="distance-legend-item">
+            <span class="dl-dot dl-avg"></span>
+            <span class="dl-label">평균</span>
+            <span class="dl-value">384,400 km</span>
+          </div>
+          <div class="distance-legend-item">
+            <span class="dl-dot dl-mini"></span>
+            <span class="dl-label">미니문</span>
+            <span class="dl-value">404,000 km 초과</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 오늘의 조도 및 날씨 -->
+      <section class="info-card">
+        <div class="card-title">오늘의 조도 및 날씨</div>
+        <div class="info-row">
+          <span class="info-label">조도</span>
+          <span id="info-illum" class="info-value">—</span>
+        </div>
+        <div class="illum-bar-wrap"><div id="illum-bar" class="illum-bar"></div></div>
+        <div class="info-row" style="margin-top:10px">
+          <span class="info-label">이번 저녁</span>
+          <span id="info-today-weather" class="info-value">—</span>
+        </div>
       </section>
 
       <!-- 오늘의 달 궤적 -->

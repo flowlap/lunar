@@ -184,8 +184,7 @@ export function getPhotographyRecommendations(localNoon, lat, lon, type = 'full'
       } else {
         score = 30
       }
-      if (dist < 363000) tags.push('슈퍼문')
-      else if (dist < 370000) tags.push('달이 가까움')
+      if (dist < 370000) tags.push('달이 가까움')
       if (score < 30) continue
 
     } else if (type === 'landscape') {
@@ -219,6 +218,10 @@ export function getPhotographyRecommendations(localNoon, lat, lon, type = 'full'
 
       if (score < 20) continue
     }
+
+    // 모든 타입 공통: 슈퍼문 / 미니문 태그
+    if (dist < 363000) tags.push('슈퍼문')
+    else if (dist > 404000) tags.push('미니문')
 
     const stars = score >= 85 ? 5 : score >= 70 ? 4 : score >= 55 ? 3 : score >= 40 ? 2 : 1
 

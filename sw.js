@@ -1,5 +1,5 @@
 // ⚠️ APP_VERSION(src/app.js)과 항상 동일하게 유지
-const CACHE_VERSION = '1.5';
+const CACHE_VERSION = '1.6';
 const CACHE_NAME = `lunar-v${CACHE_VERSION}`;
 
 const CDN_ASSETS = [
