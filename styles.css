@@ -463,6 +463,128 @@ body {
   100% { transform: translateX(340%); }
 }
 
+/* ─── 달 촬영 가이드 ─────────────────────────────── */
+.sg-block {
+  margin-bottom: 18px;
+}
+
+.sg-block:last-child {
+  margin-bottom: 0;
+}
+
+.sg-block-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8888b8;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+
+.sg-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sg-list li {
+  font-size: 13px;
+  color: #c8c8e8;
+  line-height: 1.5;
+  padding-left: 12px;
+  position: relative;
+}
+
+.sg-list li::before {
+  content: "·";
+  position: absolute;
+  left: 0;
+  color: #6060a0;
+}
+
+.sg-list-ordered {
+  counter-reset: sg-counter;
+}
+
+.sg-list-ordered li {
+  counter-increment: sg-counter;
+}
+
+.sg-list-ordered li::before {
+  content: counter(sg-counter) ".";
+  font-size: 11px;
+  font-weight: 600;
+  color: #7070a8;
+  top: 1px;
+}
+
+.sg-settings {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.sg-setting-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.sg-setting-row dt {
+  font-size: 11px;
+  font-weight: 600;
+  color: #7070a8;
+  min-width: 52px;
+  flex-shrink: 0;
+}
+
+.sg-setting-row dd {
+  font-size: 13px;
+  color: #e0e0ff;
+  margin: 0;
+}
+
+.sg-table-note {
+  font-size: 11px;
+  color: #7070a8;
+  margin: 0 0 6px;
+}
+
+.sg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.sg-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: #7070a8;
+  padding: 0 0 5px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+
+.sg-table th:last-child,
+.sg-table td:last-child {
+  text-align: left;
+  padding-left: 12px;
+}
+
+.sg-table td {
+  padding: 5px 0;
+  color: #c8c8e8;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.sg-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
 /* ─── 데이터 출처 ─────────────────────────────────── */
 .attribution {
   display: flex;
