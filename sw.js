@@ -1,4 +1,6 @@
-const CACHE_NAME = 'lunar-v5';
+// ⚠️ APP_VERSION(src/app.js)과 항상 동일하게 유지
+const CACHE_VERSION = '1.5';
+const CACHE_NAME = `lunar-v${CACHE_VERSION}`;
 
 const CDN_ASSETS = [
   'https://cdn.jsdelivr.net/npm/suncalc@1.9.0/suncalc.js',
@@ -22,11 +24,17 @@ const APP_ASSETS = [
 const API_HOSTS = ['api.open-meteo.com', 'timeapi.io'];
 
 self.addEventListener('install', (event) => {
-  // 새 버전 파일을 미리 캐시 후 즉시 활성화 대기
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll([...APP_ASSETS, ...CDN_ASSETS]))
+    caches.open(CACHE_NAME).then((cache) => {
+      // CDN: 버전 고정 URL이므로 HTTP 캐시 허용
+      cache.addAll(CDN_ASSETS);
+      // 앱 파일: HTTP 캐시 우회하여 항상 최신 파일로 저장
+      return cache.addAll(
+        APP_ASSETS.map((url) => new Request(url, { cache: 'reload' }))
+      );
+    })
   );
-  self.skipWaiting(); // 기존 SW를 기다리지 않고 즉시 activate 단계로 진입
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -35,7 +43,6 @@ self.addEventListener('activate', (event) => {
       .then((keys) => {
         const oldCaches = keys.filter((k) => k !== CACHE_NAME);
         const isUpdate = oldCaches.length > 0;
-        // 구버전 캐시 전부 삭제
         return Promise.all(oldCaches.map((k) => caches.delete(k))).then(() => isUpdate);
       })
       .then((isUpdate) => {
@@ -48,7 +55,7 @@ self.addEventListener('activate', (event) => {
           });
       })
   );
-  self.clients.claim(); // 새 SW가 즉시 모든 페이지 제어권 획득
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -80,9 +87,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 앱 파일: 네트워크 우선 → 온라인 시 항상 최신 버전, 오프라인 시 캐시 fallback
+  // 앱 파일: HTTP 캐시 우회 네트워크 우선 → 오프라인 시 캐시 fallback
   event.respondWith(
-    fetch(event.request)
+    fetch(new Request(event.request, { cache: 'no-cache' }))
       .then((response) => {
         if (response.status === 200 && event.request.method === 'GET') {
           const cloned = response.clone();
